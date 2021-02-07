@@ -47,13 +47,13 @@ Section Mathematical_AdjMat_Model.
     sr: (* size_representable *)
       0 < size <= Int.max_signed;
     ir: (* inf_representable *)
-      0 < inf < Int.max_signed; 
+      Int.min_signed <= inf <= Int.max_signed; 
     vm: (* vvalid_meaning *)
       forall v, vvalid g v <-> 0 <= v < size;
     em: (* evalid_meaning *)
       forall e, evalid g e <-> 
                 Int.min_signed <= elabel g e <= Int.max_signed /\
-                elabel g e < inf;
+                elabel g e <> inf;
     ese: (* evalid_strong_evalid *)
       forall e, evalid g e -> strong_evalid g e;
     iew: (* invalid_edge_weight *)
