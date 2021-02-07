@@ -80,14 +80,42 @@ Section MathDijkGraph.
   Definition inf_further_restricted (g: DijkGG) :=
     @ifr g (SoundDijk_DijkGG g).
 
+  Lemma max_div_size_str_pos:
+    forall (g: DijkGG),
+      0 < Int.max_signed / size.
+  Proof.
+    intros.
+    apply Z.div_str_pos, (size_representable g).
+  Qed.
+
+  Lemma max_less_maxdivsize:
+    forall (g: DijkGG),
+      Int.max_signed > Int.max_signed - Int.max_signed / size + 1.
+  Proof.
+    intros.
+    pose proof (size_representable g).
+    pose proof (size_further_restricted g).
+    assert (0 < Int.max_signed / size + 1). {
+      rewrite Z.add_1_r.
+      apply Zle_lt_succ.
+      apply Z.div_pos; [|lia].
+      compute; inversion 1.
+    }
+    admit.
+  Admitted.
+  
   Lemma inf_bounds:
     forall (g: DijkGG),
       0 < inf < Int.max_signed.
   Proof.
     intros.
-    apply (inf_representable g).
+    pose proof (inf_further_restricted g).
+    pose proof (max_div_size_str_pos g).
+    assert (0 <= Int.max_signed / size - 1) by lia.
+    pose proof (max_less_maxdivsize g).
+    destruct H; split; lia.
   Qed.
-
+    
   (* And now some lemmas that come from soundness plugins. *)
 
   Lemma edge_cost_pos:
@@ -101,7 +129,8 @@ Section MathDijkGraph.
     - apply H; trivial.
     - rewrite H0 in n.
       replace (elabel g e) with inf by trivial.
-      pose proof (@inf_representable _ _ g). lia.
+      pose proof (@inf_representable _ _ g).
+      pose proof (inf_bounds g). lia.
   Qed.
 
   Lemma div_pos_le:
@@ -150,7 +179,7 @@ Section MathDijkGraph.
     forall (g: DijkGG) a b,
       vvalid g a ->
       vvalid g b ->
-      elabel g (a, b) < inf ->
+      elabel g (a, b) <> inf ->
       strong_evalid g (a,b).
   Proof.
     intros.

@@ -382,6 +382,8 @@ Section DijkstraMathLemmas.
     - apply strong_evalid_dijk; trivial.
       + apply (path_ends_valid_dst _ s _ p1); trivial.
       + apply (path_ends_valid_src _ _ u p2); trivial.
+      + intro. rewrite H14 in H13.
+        apply Zlt_not_le in H13; apply H13; reflexivity.
     - rewrite <- H4 in H3.
       apply path_cost_path_glue_lt in H3; trivial.
       destruct H3; trivial.
@@ -402,11 +404,10 @@ Section DijkstraMathLemmas.
     intros.
     rewrite (evalid_meaning g); split.
     1: apply edge_representable.
-    destruct H0.
-    apply Z.le_lt_trans with (m := Int.max_signed / size - 1);
-      trivial.
-    rewrite H in H1; trivial.
-    apply (inf_further_restricted g).
+    intro. subst cost.
+    replace (elabel g (a,b)) with inf in H0.
+    pose proof (inf_further_restricted g).
+    lia.
   Qed.
 
   Lemma inv_popped_add_src:
@@ -557,7 +558,15 @@ Section DijkstraMathLemmas.
         exists (fst p2mom, snd p2mom +:: (mom, u)).              
         assert (Hg: evalid g (mom, u)). {
           rewrite (evalid_meaning g); split.
-          apply edge_representable. trivial.
+          apply edge_representable.
+          red in H2. rewrite Forall_forall in H2.
+          assert (0 <= Znth mom dist). {
+            apply (vvalid_meaning g) in H8.
+            apply H2. apply Znth_In; lia.
+          }
+          intro.
+          replace (elabel g (mom, u)) with inf in H12.
+          lia.
         }
         assert (strong_evalid g (mom, u)). {
           split3; trivial.
@@ -839,6 +848,9 @@ Section DijkstraMathLemmas.
     assert (evalid g (mom, dst)). {
       rewrite (evalid_meaning g). split.
       apply (edge_representable). trivial.
+      intro.
+      replace (elabel g (mom, dst)) with inf in H7.
+      apply Zlt_not_le in H7; apply H7; reflexivity.
     }
     
     assert (Znth mom dist < inf) by
@@ -1895,6 +1907,10 @@ Section DijkstraMathLemmas.
         assert (Hg: evalid g (mom, u)). {
           rewrite (evalid_meaning g); split.
           apply edge_representable. trivial.
+          intro.
+          replace (elabel g (mom, u)) with inf in H9.
+          apply Zlt_not_le in H9.
+          apply H9; reflexivity.
         }
         assert (strong_evalid g (mom, u)). {
           split3; trivial.

@@ -1316,6 +1316,11 @@ Section DijkstraProof.
                  apply (valid_edge_bounds g).
                  rewrite (evalid_meaning g). split; trivial.
                  rewrite Int.signed_repr in Htemp; trivial.
+                 intro.
+                 replace (elabel g (u,i)) with inf in Htemp.
+                 rewrite <- H23 in Htemp.
+                 apply Zlt_not_le in Htemp.
+                 apply Htemp; reflexivity.
                }
                clear Htemp.
                assert (H_ui_valid: evalid g (u,i)). {
