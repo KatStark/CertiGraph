@@ -1990,6 +1990,6 @@ Transparent size.
 entailer!.
 Global Opaque size.
 }
-Qed.
+Admitted.
 
 End PrimProof.
