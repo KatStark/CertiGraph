@@ -94,42 +94,13 @@ Proof.
   rewrite eformat2'. rewrite eformat1. simpl; auto. simpl; lia. simpl; lia.
 Qed.
 
-Instance Finite_UAdjMatGG (g: UAdjMatGG):
-  FiniteGraph g.
+Instance Finite_UAdjMatGG (g: UAdjMatGG): FiniteGraph g.
 Proof. apply (finGraph g). Qed.
 
 Lemma vert_bound:
 forall (g: UAdjMatGG) v, vvalid g v <-> 0 <= v < size.
 Proof.
 intros. apply (vvalid_meaning g).
-Qed.
-
-Lemma UAdjMatGG_VList:
-  forall (g: UAdjMatGG), Permutation (VList g) (nat_inc_list (Z.to_nat size)).
-Proof.
-intros. apply NoDup_Permutation. apply NoDup_VList. apply nat_inc_list_NoDup.
-intros. rewrite VList_vvalid. rewrite vert_bound.
-rewrite nat_inc_list_in_iff. rewrite Z_to_nat_max.
-destruct (Z.lt_trichotomy size 0). rewrite Z.max_r by lia. split; intros; lia.
-destruct H. rewrite H. unfold Z.max; simpl. split; lia.
-rewrite Z.max_l by lia. split; auto.
-Qed.
-
-Lemma evalid_form: (*useful for a = (u,v) etc*)
-forall (g: UAdjMatGG) e, evalid g e -> e = (src g e, dst g e).
-Proof.
-  intros.
-  rewrite (edge_src_fst g).
-  rewrite (edge_dst_snd g).
-  destruct e; simpl; auto.
-Qed.
-
-Lemma evalid_vvalid:
-forall (g: UAdjMatGG) u v, evalid g (u,v) -> vvalid g u /\ vvalid g v.
-Proof.
-intros. apply (evalid_strong_evalid g) in H. destruct H.
-rewrite (edge_src_fst g), (edge_dst_snd g) in H0 by auto.
-simpl in H0; auto.
 Qed.
 
 Lemma evalid_adjacent:
@@ -139,10 +110,13 @@ intros. exists (u,v); split. apply (evalid_strong_evalid g); auto.
 rewrite (edge_src_fst g), (edge_dst_snd g) by auto. left; simpl; auto.
 Qed.
 
+(* needs evalid e < inf *)
 Lemma evalid_inf_iff:
 forall (g: UAdjMatGG) e, evalid g e <-> elabel g e < inf.
 Proof.
   intros; split; intros.
+Admitted.
+(*
   apply (evalid_meaning g); auto.
 destruct (evalid_dec g e). 
 auto. exfalso.
@@ -150,25 +124,20 @@ rewrite (invalid_edge_weight g) in n.
 replace (elabel g e) with inf in * by trivial.
 lia.
 Qed.
+ *)
 
-Lemma weight_representable:
-forall (g: UAdjMatGG) e, Int.min_signed <= elabel g e <= Int.max_signed.
-Proof.
-  intros. destruct (evalid_dec g e).
-apply (evalid_meaning g e); auto.
-rewrite (invalid_edge_weight g) in n.
-replace (elabel g e) with inf in * by trivial.
-pose proof (inf_representable g). rep_lia. 
-Qed.
-
+(* needs evalid e < inf *)
 Lemma weight_inf_bound:
 forall (g: UAdjMatGG) e, elabel g e <= inf.
 Proof.
 intros. destruct (evalid_dec g e).
-apply Z.lt_le_incl. apply (evalid_meaning  g e). auto.
+apply Z.lt_le_incl.
+Admitted.
+(*apply (evalid_meaning  g e). auto.
 apply (invalid_edge_weight g) in n.
 replace (elabel g e) with inf in * by trivial. lia.
 Qed.
+ *)
 
 Lemma adj_edge_form:
 forall (g: UAdjMatGG) u v a b, adj_edge g (u,v) a b -> a <= b -> (u = a /\ v = b).
@@ -243,7 +212,7 @@ Qed.
 
 Section EDGELESS_UADJMATGRAPH.
 
-Context {inf_bound: 0 < inf < Int.max_signed}.
+Context {inf_bound: Int.min_signed <= inf <= Int.max_signed}.
 Context {size_bound: 0 < size <= Int.max_signed}.
 
 Definition edgeless_lgraph : UAdjMatLG :=
@@ -261,7 +230,7 @@ auto. auto.
 all: simpl; intros; try auto; try contradiction.
 split; intros; auto.
 split; intros. contradiction. destruct H.
-apply Zaux.Zgt_not_eq in H0. contradiction.
+apply H0; reflexivity.
 split; intros; auto.
 constructor; unfold EnumEnsembles.Enumerable.
 (*vertices*)
@@ -299,7 +268,7 @@ Lemma edgeless_partial_lgraph:
   forall (g: UAdjMatGG), is_partial_lgraph edgeless_graph g.
 Proof.
 intros. split. unfold is_partial_graph.
-split. intros. simpl. simpl in H. rewrite vert_bound. auto.
+split. intros. simpl. simpl in H. rewrite (vvalid_meaning g). auto.
 split. intros. pose proof (edgeless_graph_evalid e). contradiction.
 split. intros. pose proof (edgeless_graph_evalid e). contradiction.
 intros. pose proof (edgeless_graph_evalid e). contradiction.
@@ -563,7 +532,7 @@ constructor; simpl. constructor; simpl.
 ++unfold removeValidFunc; split; intros; destruct (E_EqDec e0 e).
   destruct H. hnf in e1. contradiction.
   apply (evalid_meaning g). apply H.
-  destruct H. apply Zaux.Zgt_not_eq in H0. contradiction.
+  destruct H. exfalso. apply H0; reflexivity.
   apply (evalid_meaning g) in H; auto.
 ++ intros. red in H. destruct H.
    apply remove_edge_preserves_strong_evalid; split; auto.
@@ -651,15 +620,18 @@ destruct H7 as [l ?].
 assert (~ In x l). unfold not; intros. apply (fits_upath_evalid t1 p l) in H8; auto.
 assert (fits_upath t2 l p).
 apply (fits_upath_transfer' p l t1 t2) in H7; auto.
-  intros; split; intros. apply H. auto. rewrite vert_bound in *; auto.
-  intros. apply H. apply (fits_upath_evalid t1 p l); auto.
-  intros. apply H. auto. apply (evalid_strong_evalid t1); auto.
-  intros. apply H. auto. apply (evalid_strong_evalid t1); auto.
+intros; split; intros. apply H. auto.
+rewrite (vvalid_meaning t1) in *; auto.
+rewrite (vvalid_meaning t2) in *; auto.
+intros. apply H. apply (fits_upath_evalid t1 p l); auto.
+intros. apply H. auto. apply (evalid_strong_evalid t1); auto.
+intros. apply H. auto. apply (evalid_strong_evalid t1); auto.
 assert (p = (src t2 x :: dst t2 x :: nil)). assert (unique_simple_upath t2). apply H1.
 unfold unique_simple_upath in H10. apply (H10 (src t2 x) (dst t2 x)).
 split. apply valid_upath_exists_list_edges'. exists l; auto. apply H6.
-apply connected_exists_list_edges'. intros. rewrite vert_bound. apply (valid_upath_vvalid t1) in H11.
-rewrite vert_bound in H11; auto. apply H6.
+apply connected_exists_list_edges'. intros.
+rewrite (vvalid_meaning t2). apply (valid_upath_vvalid t1) in H11.
+rewrite (vvalid_meaning t1) in H11; auto. apply H6.
 exists l. auto.
 apply H5. apply H5.
 split. apply H3. apply NoDup_cons.
@@ -717,8 +689,8 @@ exists (@edgeless_graph (inf_representable g) (size_representable g)).
 split. split. apply edgeless_partial_lgraph. split. apply uforest'_edgeless_graph.
 unfold spanning; intros. destruct (V_EqDec u v).
 hnf in e. subst v. split; intros; apply connected_refl.
-apply connected_vvalid in H0. rewrite vert_bound in *. apply H0.
-apply connected_vvalid in H0. rewrite vert_bound in *. apply H0.
+apply connected_vvalid in H0. rewrite (vvalid_meaning g) in *. apply H0.
+apply connected_vvalid in H0. rewrite (vvalid_meaning g) in *. apply H0.
 unfold complement, equiv in c. split; intros. exfalso. destruct H0.
 unfold connected_by_path in H0. destruct H0. destruct H1. destruct x. inversion H1.
 destruct x. inversion H1. inversion H2. subst v0. contradiction.
@@ -810,11 +782,13 @@ apply Htg.
 ++
 assert (vvalid g u /\ vvalid g v). apply connected_vvalid in H0; auto. destruct H3.
 assert (u <= v). apply (undirected_edge_rep g). auto.
-set (w:= elabel g a).
+set (w:= elabel g a). 
 assert (Int.min_signed <= w < inf). unfold w. split.
-pose proof (weight_representable g a). apply H6. apply (evalid_meaning g). auto.
-rewrite vert_bound in H3, H4. rewrite <- (vert_bound t) in H3, H4.
-assert (Ha: a = (u,v)). unfold u, v; apply evalid_form; auto. rewrite Ha in *.
+pose proof (weight_representable g a). apply H6.
+admit. (* needs evalid e < inf *)
+rewrite (vvalid_meaning g) in H3, H4.
+rewrite <- (vvalid_meaning t) in H3, H4.
+assert (Ha: a = (u,v)). unfold u, v; apply (evalid_form g); auto. rewrite Ha in *.
 set (adde_a:=@UAdjMatGG_adde t u v H3 H4 H5 w H6).
 exists adde_a. split. split.
 apply adde_partial_lgraph; auto. unfold w. rewrite Ha; auto.
@@ -871,7 +845,7 @@ simpl. unfold update_elabel, equiv_dec.
 destruct (E_EqDec (u,v) e). hnf in e0. subst e. unfold w; rewrite Ha; auto.
 apply Htg. simpl in H7. unfold addValidFunc in H7. destruct H7. apply H7.
 unfold complement, equiv in c. symmetry in H7; contradiction.
-Qed.
+Admitted.
 
 Corollary exists_labeled_spanning_uforest:
 forall (g: UAdjMatGG), exists (t: UAdjMatGG), labeled_spanning_uforest t g.

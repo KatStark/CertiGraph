@@ -260,7 +260,7 @@ rewrite data_at__tarray.
 unfold default_val. simpl. entailer!. lia.
 split3; trivial. red. rep_lia.
 
-assert (Hrbound: 0 <= r < size). apply vert_bound in Hprecon_1; auto.
+assert (Hrbound: 0 <= r < size). apply (vvalid_meaning g) in Hprecon_1; auto.
 rewrite <- Heqv_key.
 forward.
 assert (Hstarting_keys: forall i, 0 <= i < size -> is_int I32 Signed (Znth i (upd_Znth r (list_repeat (Z.to_nat size) (Vint (Int.repr inf))) (Vint (Int.repr 0))))). {
@@ -328,7 +328,8 @@ assert (Znth i starting_keys = Vint (Int.repr (Znth i (upd_Znth r (list_repeat (
 forward_call (v_pq, i, Znth i (upd_Znth r (list_repeat (Z.to_nat size) inf) 0), sublist 0 i starting_keys ++ sublist i size (list_repeat (Z.to_nat size) Vundef)).
 split. auto. unfold weight_inrange_priq.
 destruct (Z.eq_dec i r). subst i. rewrite upd_Znth_same. split. pose proof Int.min_signed_neg; lia.
-pose proof (inf_representable g); lia.
+admit. (* needs 0 <= inf *)
+(* pose proof (inf_representable g); lia. *)
 rewrite Zlength_list_repeat; lia.
 rewrite upd_Znth_diff, Znth_list_repeat_inrange. rep_lia.
 lia. rewrite Zlength_list_repeat; lia. rewrite Zlength_list_repeat; lia. auto.
@@ -488,7 +489,7 @@ break: (
     unfold RelationClasses.complement, Equivalence.equiv in c. rewrite upd_Znth_diff.
     repeat rewrite Znth_list_repeat_inrange by lia. symmetry; rewrite <- (invalid_edge_weight g); auto.
     unfold not; intros. rewrite <- (eformat_adj g) in H0. apply adjacent_requires_vvalid in H0. destruct H0.
-    rewrite vert_bound in H1. lia.
+    rewrite (vvalid_meaning g) in H1. lia.
     rewrite Zlength_list_repeat; lia. rewrite Zlength_list_repeat; lia. auto.
   }
   assert (Hinv_6: forall v : Z,
@@ -529,7 +530,7 @@ break: (
     r = find (upd_Znth r (list_repeat (Z.to_nat size) inf) 0)
       (fold_right Z.min (hd 0 (upd_Znth r (list_repeat (Z.to_nat size) inf) 0))
          (upd_Znth r (list_repeat (Z.to_nat size) inf) 0)) 0). {
-    intros. rewrite find_src; lia. 
+    intros. rewrite find_src; try lia. admit. (* needs 0 < inf *)
   }
   (*Hinv_12 (nil <> nil) seems to be missing, autoresolved?*)
   assert (Hinv_13: forall u v : V, In u (VList g) -> ~ adjacent elg u v). {
@@ -609,14 +610,18 @@ break: (
     destruct (@in_dec Z V_EqDec i popped_vertices).    
     rep_lia.
     rewrite Hinv_5. 2: lia. destruct (V_EqDec i r).
-    pose proof (inf_representable g); rep_lia.
-    split. apply weight_representable. apply (Z.le_trans _ inf). apply weight_inf_bound. lia.
+    pose proof (inf_representable g); try rep_lia.
+    (* needs 0 <= inf *)
+    admit.
+    split. apply (weight_representable g). apply (Z.le_trans _ inf). apply weight_inf_bound. lia.
   }
   replace (data_at Tsh (tarray tint size) (map (fun x : Z => Vint (Int.repr x)) pq_state) v_pq)
     with (data_at Tsh (tarray tint size) (map Vint (map Int.repr pq_state)) v_pq).
   2: { rewrite list_map_compose. auto. }
   forward_call (v_pq, pq_state).
-  1: repeat split; trivial; lia. 
+  1: repeat split; trivial; try lia.
+  admit. (* needs 0 <= inf *)
+  admit. (* needs inf + 1 <= Int.max_signed *)
   forward_if.
 
   (*PROCEED WITH LOOP*) {
@@ -625,7 +630,9 @@ break: (
     rewrite H1 in H0; simpl in H0; now inversion H0.
   }
   forward_call (v_pq, pq_state).
-  1: repeat split; trivial; lia.
+  1: repeat split; trivial; try lia.
+  admit. (* needs 0 <= inf *)
+  admit. (* needs inf + 1 <= MAX *)
   Intros u. rename H2 into Hu.
   assert (0 <= u < size). {
     rewrite Hu. rewrite <- HZlength_pq_state. apply find_range.
@@ -728,9 +735,11 @@ break: (
     Exists parents. Exists keys. Exists upd_pq_state. entailer!.
     remember (Zlength parents) as size.
     (*in this case, proving the PROPs beforehand did not improve the timing*)
-    intros. rewrite Hinv_5 by lia. destruct (V_EqDec v r). auto. split; rep_lia.
+    intros. rewrite Hinv_5 by lia. destruct (V_EqDec v r). auto. split; try rep_lia.
+    admit. (* needs 0 <= inf *)
     pose proof (weight_representable g (eformat (v, Znth v parents))).
-    split; try rep_lia. apply weight_inf_bound.
+    split; try rep_lia. destruct H19; trivial. 
+    apply weight_inf_bound.
   }
   (*loop*)
   assert (is_int I32 Signed (if in_dec V_EqDec (Znth i (nat_inc_list (Z.to_nat size))) (popped_vertices+::u)
@@ -770,7 +779,7 @@ break: (
            pose proof (inf_representable g).
            rep_lia.
       }
-    2: { apply weight_representable. }
+    2: { apply (weight_representable g). }
     assert (Hadj_ui: adjacent g u i). {
       rewrite eformat_adj_elabel.
       assert (Znth i keys' <= inf). apply Hinv2_4. lia.
@@ -785,7 +794,7 @@ break: (
     split. lia.
     unfold weight_inrange_priq.
     rewrite graph_to_mat_eq. split.
-    apply weight_representable. rewrite eformat_adj_elabel, eformat_symm in Hadj_ui.
+    apply (weight_representable g). rewrite eformat_adj_elabel, eformat_symm in Hadj_ui.
     fold V in *. lia. lia. lia.
     Exists (upd_Znth i parents' u).
     Exists (upd_Znth i keys' (Znth i (Znth u (@graph_to_symm_mat size g)))).
@@ -884,7 +893,7 @@ break: (
       unfold V in *. rewrite Z.min_r; try lia.
       symmetry; apply Hinv2_3; lia.
       assert (Int.min_signed <= Znth i keys' <= inf). apply Hinv2_4. lia. pose proof (inf_repable); unfold repable_signed in H13; lia.
-      rewrite graph_to_mat_eq; try lia. apply weight_representable.
+      rewrite graph_to_mat_eq; try lia. apply (weight_representable g).
       (*v > i*) lia.
     } (*53s to 30s*)
     assert (Hx3: forall v : Z,
@@ -1299,7 +1308,7 @@ break: (
     rewrite eformat2; simpl; auto.
   }
   assert (Int.min_signed <= elabel g (eformat (u,(Znth u parents))) < inf). {
-    split. apply weight_representable. apply evalid_inf_iff; auto.
+    split. apply (weight_representable g). apply evalid_inf_iff; auto.
   }
   assert (Hu_evalid: ~ evalid mst' (eformat (u,(Znth u parents)))). {
     unfold not; intros. apply (Hinv_13 u (Znth u parents)).
@@ -1406,7 +1415,7 @@ break: (
       }
       set (w:=elabel g a).
       assert (Ha_weight_bound: Int.min_signed <= w < inf). {
-        split. apply weight_representable. apply evalid_inf_iff; auto.
+        split. apply (weight_representable g). apply evalid_inf_iff; auto.
       }
       set (swap:=adde remove_b (fst a) (snd a) Ha_fst_vvalid Ha_snd_vvalid Ha_fst_le_snd w Ha_weight_bound).
       assert (Hadde_partial_swap: is_partial_lgraph adde_u swap). {
@@ -1763,8 +1772,11 @@ break: (
           destruct (in_dec V_EqDec u popped_vertices). contradiction. auto.
         assert (Znth u keys <= Znth v2 keys). rewrite <- H15, <- H16. apply Hu_min; lia.
         assert (Znth v2 keys < inf). rewrite Hinv_5 by lia. destruct (V_EqDec v2 r).
-        lia.
-        apply (evalid_meaning g). apply Hinv_7; lia.
+        admit. (* needs 0 < inf *)
+        (* lia. *)
+        (* apply (evalid_meaning g). apply Hinv_7; lia. *)
+        admit.
+        (* needs evalid e < inf *)
         (*now so Znth u keys = inf*)
         destruct popped_vertices. contradiction.
         (*case u=r, then Znth v2 pq_state = Znth v2 keys should be = inf, lia. Easiest way to solve this is to hack Hinv_11*)
@@ -1814,8 +1826,11 @@ break: (
           destruct (in_dec V_EqDec u popped_vertices). contradiction. auto.
         assert (Znth u keys <= Znth v2 keys). rewrite <- H15, <- H16. apply Hu_min; lia.
         assert (Znth v2 keys < inf). rewrite Hinv_5 by lia. destruct (V_EqDec v2 r).
-        lia.
-        apply (evalid_meaning g). apply Hinv_7; lia.
+        admit. (* needs 0 < inf *)
+        (* lia. *)
+        (* apply (evalid_meaning g). apply Hinv_7; lia. *)
+        admit.
+        (* needs evalid e < inf *)
         (*now so Znth u keys = inf*)
         destruct popped_vertices. contradiction.
         (*case u=r, then Znth v2 pq_state = Znth v2 keys should be = inf, lia. Easiest way to solve this is to hack Hinv_11*)
@@ -1863,7 +1878,8 @@ break: (
       destruct (in_dec V_EqDec x popped_vertices). auto. exfalso. rewrite Hinv_5 in H2.
       assert (Znth x pq_state > inf). apply H0. apply Znth_In. unfold V in *. rewrite HZlength_pq_state. auto. 2: auto.
       destruct (V_EqDec x r).
-      lia.
+      (* needs 0 < inf *) admit.
+      (* lia. *)
       rewrite H2 in H3. pose proof (weight_inf_bound g (eformat (x, Znth x parents))).
       apply Zgt_not_le in H3. contradiction.
     }

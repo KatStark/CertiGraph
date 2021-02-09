@@ -1,7 +1,9 @@
 Require Import Coq.ZArith.BinInt.
 Require Import Coq.Classes.EquivDec.
+Require Import Coq.micromega.Lia.
 
 Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
 
 Require Import CertiGraph.lib.List_ext.
 Require Import CertiGraph.graph.graph_model.
@@ -162,4 +164,47 @@ Section Mathematical_AdjMat_Model.
     rewrite <- (edge_dst_snd g); trivial.
   Qed.
 
+  Instance Finite_AdjMatGG (g: AdjMatGG): FiniteGraph g.
+  Proof. apply (finGraph g). Qed.
+
+  Lemma UAdjMatGG_VList:
+    forall (g: AdjMatGG), Permutation (VList g) (nat_inc_list (Z.to_nat size)).
+  Proof.
+    intros. apply NoDup_Permutation. apply NoDup_VList. apply nat_inc_list_NoDup.
+    intros. rewrite VList_vvalid.
+    rewrite (vvalid_meaning g).
+    rewrite nat_inc_list_in_iff. rewrite Z_to_nat_max.
+    destruct (Z.lt_trichotomy size 0). rewrite Z.max_r by
+        lia. split; intros; lia.
+    destruct H. rewrite H. unfold Z.max; simpl. split; lia.
+    rewrite Z.max_l by lia. split; auto.
+  Qed.
+  
+  Lemma evalid_form: (*useful for a = (u,v) etc*)
+    forall (g: AdjMatGG) e, evalid g e -> e = (src g e, dst g e).
+  Proof.
+    intros.
+    rewrite (edge_src_fst g).
+    rewrite (edge_dst_snd g).
+    destruct e; simpl; auto.
+  Qed.
+  
+  Lemma evalid_vvalid:
+    forall (g: AdjMatGG) u v, evalid g (u,v) -> vvalid g u /\ vvalid g v.
+  Proof.
+    intros. apply (evalid_strong_evalid g) in H. destruct H.
+    rewrite (edge_src_fst g), (edge_dst_snd g) in H0 by auto.
+    simpl in H0; auto.
+  Qed.
+
+  Lemma weight_representable:
+    forall (g: AdjMatGG) e, Int.min_signed <= elabel g e <= Int.max_signed.
+  Proof.
+    intros. destruct (evalid_dec g e).
+    apply (evalid_meaning g e); auto.
+    rewrite (invalid_edge_weight g) in n.
+    replace (elabel g e) with inf in * by trivial.
+    pose proof (inf_representable g). trivial. 
+  Qed.
+  
 End Mathematical_AdjMat_Model.

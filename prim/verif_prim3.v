@@ -233,7 +233,7 @@ assert_PROP (Zlength (map (fun x : Z => Vint (Int.repr x)) garbage) = size). ent
 forward_call (pointer_val_val parent_ptr, (map (fun x : Z => Vint (Int.repr x)) garbage), size).
 clear H garbage.
 forward_call (v_out, (list_repeat (Z.to_nat size) Vundef), 0).
-assert (Hrbound: 0 <= r < size). apply vert_bound in Hprecon_1; auto.
+assert (Hrbound: 0 <= r < size). apply (vvalid_meaning g) in Hprecon_1; auto.
 forward.
 assert (Hstarting_keys: forall i, 0 <= i < size -> is_int I32 Signed (Znth i (upd_Znth r (list_repeat (Z.to_nat size) (Vint (Int.repr inf))) (Vint (Int.repr 0))))). {
   intros. unfold is_int. destruct (Z.eq_dec i r).
@@ -445,7 +445,7 @@ break: (
     unfold RelationClasses.complement, Equivalence.equiv in c. rewrite upd_Znth_diff.
     repeat rewrite Znth_list_repeat_inrange by lia. symmetry; rewrite <- (invalid_edge_weight g); auto.
     unfold not; intros. rewrite <- (eformat_adj g) in H0. apply adjacent_requires_vvalid in H0. destruct H0.
-    rewrite vert_bound in H1. lia.
+    rewrite (vvalid_meaning g) in H1. lia.
     rewrite Zlength_list_repeat; lia. rewrite Zlength_list_repeat; lia. auto.
   }
   assert (Hinv_6: forall v : Z,
@@ -556,7 +556,7 @@ break: (
     rewrite In_Znth_iff in Hx. destruct Hx as [i [? ?]]. rewrite HZlength_pq_state in H. subst x.
     rewrite Hinv_6. 2: lia. destruct (in_dec V_EqDec i popped_vertices). rep_lia.
     rewrite Hinv_5. 2: lia. destruct (V_EqDec i r). auto.
-    split. apply weight_representable. apply (Z.le_trans _ inf). apply weight_inf_bound. lia.
+    split. apply (weight_representable g). apply (Z.le_trans _ inf). apply weight_inf_bound. lia.
   }
   replace (data_at Tsh (tarray tint size) (map (fun x : Z => Vint (Int.repr x)) pq_state) v_pq)
     with (data_at Tsh (tarray tint size) (map Vint (map Int.repr pq_state)) v_pq).
@@ -674,7 +674,7 @@ break: (
     Exists parents. Exists keys. Exists upd_pq_state. entailer!.
     (*in this case, proving the PROPs beforehand did not improve the timing*)
     intros. rewrite Hinv_5 by lia. destruct (V_EqDec v r). auto. split.
-    apply weight_representable. apply weight_inf_bound.
+    apply (weight_representable g). apply weight_inf_bound.
   }
   (*loop*)
   assert (is_int I32 Signed (if in_dec V_EqDec (Znth i (nat_inc_list (Z.to_nat size))) (popped_vertices+::u)
@@ -709,7 +709,7 @@ break: (
       rewrite Int.signed_repr in H7. rewrite Int.signed_repr in H7.
     2: { assert (Int.min_signed <= Znth i keys' <= inf). apply Hinv2_4; lia.
       set (k:=Int.max_signed); compute in k; subst k. rewrite inf_eq in H8; lia. }
-    2: { apply weight_representable. }
+    2: { apply (weight_representable g). }
     assert (Hadj_ui: adjacent g u i). {
       rewrite eformat_adj_elabel.
       assert (Znth i keys' <= inf). apply Hinv2_4. lia.
@@ -724,7 +724,7 @@ break: (
     split. lia.
     unfold weight_inrange_priq.
     rewrite graph_to_mat_eq. split.
-    apply weight_representable. rewrite eformat_adj_elabel, eformat_symm in Hadj_ui.
+    apply (weight_representable g). rewrite eformat_adj_elabel, eformat_symm in Hadj_ui.
     fold V in *. lia. lia. lia.
     Exists (upd_Znth i parents' u).
     Exists (upd_Znth i keys' (Znth i (Znth u (@graph_to_symm_mat size g)))).
@@ -827,7 +827,7 @@ break: (
       rewrite Z.min_r; lia.
       replace (Znth i pq_state') with (Znth i upd_pq_state). rewrite H11. rewrite Z.min_r; lia. symmetry; apply Hinv2_3; lia.
       assert (Int.min_signed <= Znth i keys' <= inf). apply Hinv2_4. lia. pose proof (inf_repable); unfold repable_signed in H13; lia.
-      rewrite graph_to_mat_eq; try lia. apply weight_representable.
+      rewrite graph_to_mat_eq; try lia. apply (weight_representable g).
       (*v > i*) lia.
     } (*53s to 30s*)
     assert (Hx3: forall v : Z,
@@ -992,7 +992,7 @@ break: (
     replace (find (popped_vertices +:: u) v 0) with (find popped_vertices v 0) in H11. auto.
     symmetry; apply find_app_In1. auto.
     (*****NOT IN POPPED_VERTICES+::U*****)
-    assert (In v (remove V_EqDec u unpopped_vertices)). destruct (Hpopped_or_unpopped v). rewrite vert_bound; auto.
+    assert (In v (remove V_EqDec u unpopped_vertices)). destruct (Hpopped_or_unpopped v). rewrite (vvalid_meaning g); auto.
     exfalso; apply n; apply in_or_app; left; auto. rewrite remove_In_iff. split. auto. unfold not; intros.
     subst v. apply n; apply in_or_app; right; left; auto.
     destruct (adjacent_dec g u v).
@@ -1121,7 +1121,7 @@ break: (
     replace (Znth v parents') with (if elabel g (eformat (u, v)) <? Znth v upd_pq_state then u else Znth v parents) in H6.
     2: { symmetry; apply Hinv2_2; auto. }
     rewrite <- (@graph_to_mat_eq size) in H6 by lia. destruct (Znth u (Znth v (@graph_to_symm_mat size g)) <? Znth v upd_pq_state).
-    assert (vvalid g u). apply adjacent_requires_vvalid in H8. apply H8. rewrite vert_bound in H9. lia.
+    assert (vvalid g u). apply adjacent_requires_vvalid in H8. apply H8. rewrite (vvalid_meaning g) in H9. lia.
     apply Hinv_8. lia. lia. rewrite find_notIn_0, sublist_same; auto.
     unfold not; intros; apply n; apply in_or_app; left; auto.
     (*not adjacent: rewrite parents' into parents*)
@@ -1242,7 +1242,7 @@ break: (
     rewrite eformat2; simpl; auto.
   }
   assert (Int.min_signed <= elabel g (eformat (u,(Znth u parents))) < inf). {
-    split. apply weight_representable. apply evalid_inf_iff; auto.
+    split. apply (weight_representable g). apply evalid_inf_iff; auto.
   }
   assert (Hu_evalid: ~ evalid mst' (eformat (u,(Znth u parents)))). {
     unfold not; intros. apply (Hinv_13 u (Znth u parents)).
@@ -1349,7 +1349,7 @@ break: (
       }
       set (w:=elabel g a).
       assert (Ha_weight_bound: Int.min_signed <= w < inf). {
-        split. apply weight_representable. apply evalid_inf_iff; auto.
+        split. apply (weight_representable g). apply evalid_inf_iff; auto.
       }
       set (swap:=adde remove_b (fst a) (snd a) Ha_fst_vvalid Ha_snd_vvalid Ha_fst_le_snd w Ha_weight_bound).
       assert (Hadde_partial_swap: is_partial_lgraph adde_u swap). {
@@ -1704,7 +1704,9 @@ break: (
           destruct (in_dec V_EqDec u popped_vertices). contradiction. auto.
         assert (Znth u keys <= Znth v2 keys). rewrite <- H15, <- H16. apply Hu_min; lia.
         assert (Znth v2 keys < inf). rewrite Hinv_5 by lia. destruct (V_EqDec v2 r). rewrite inf_eq; lia.
-        apply (evalid_meaning g). apply Hinv_7; lia.
+        (* needs evalid e < inf *)
+        (* apply (evalid_meaning g). apply Hinv_7; lia. *)
+        admit.
         (*now so Znth u keys = inf*)
         destruct popped_vertices. contradiction.
         (*case u=r, then Znth v2 pq_state = Znth v2 keys should be = inf, lia. Easiest way to solve this is to hack Hinv_11*)
@@ -1754,7 +1756,9 @@ break: (
           destruct (in_dec V_EqDec u popped_vertices). contradiction. auto.
         assert (Znth u keys <= Znth v2 keys). rewrite <- H15, <- H16. apply Hu_min; lia.
         assert (Znth v2 keys < inf). rewrite Hinv_5 by lia. destruct (V_EqDec v2 r). rewrite inf_eq; lia.
-          apply (evalid_meaning g). apply Hinv_7; lia.
+        (* needs evalid e < inf *)
+        (* apply (evalid_meaning g). apply Hinv_7; lia. *)
+        admit.
         (*now so Znth u keys = inf*)
         destruct popped_vertices. contradiction.
         (*case u=r, then Znth v2 pq_state = Znth v2 keys should be = inf, lia. Easiest way to solve this is to hack Hinv_11*)
@@ -1894,6 +1898,6 @@ Transparent size.
 entailer!.
 Global Opaque size.
 }
-Qed.
+Admitted.
 
 End PrimProof.
