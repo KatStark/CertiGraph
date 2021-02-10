@@ -1,7 +1,7 @@
 Require Import CertiGraph.prim.prim_env.
 Require Export CertiGraph.lib.find_lemmas.
 Require Export CertiGraph.priq.is_empty_lemmas.
-Require Import CertiGraph.graph.MathUAdjMatGraph. 
+Require Import CertiGraph.prim.MathPrimGraph.
 Require Import CertiGraph.prim.prim_constants.
 Require Import CertiGraph.graph.SpaceUAdjMatGraph2.
 Require Import CertiGraph.prim.prim_spec2.
@@ -1112,7 +1112,7 @@ break: (
   Exists (adde_u).
   Exists (finGraph adde_u).
   Exists parents' keys' pq_state' (popped_vertices+::u) (remove V_EqDec u unpopped_vertices).
-  assert (HM: exists M : UAdjMatGG, minimum_spanning_forest M g /\ is_partial_lgraph adde_u M). {
+  assert (HM: exists M : PrimGG, minimum_spanning_forest M g /\ is_partial_lgraph adde_u M). {
     destruct Hinv_15 as [M [Hmsf_M Hpartial_M]]. pose proof (finGraph M).
     destruct (evalid_dec M (eformat (u, Znth u parents))).
     ****

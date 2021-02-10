@@ -18,10 +18,11 @@ Section Mathematical_Undirected_AdjMat_Model.
   Definition UAdjMatLG := AdjMatLG.
 
   (* We just add a further constraint to AdjMat's soundness *)
-  Class SoundUAdjMat (g: UAdjMatLG) := {
+  Class SoundUAdjMat (g: UAdjMatLG) :=
+    {
     sadjmat: @SoundAdjMat size inf g;
     uer: forall e, evalid g e -> src g e <= dst g e;
-                                      }.
+    }.
 
   Definition UAdjMatGG := (GeneralGraph V E DV DE DG (fun g => SoundUAdjMat g)).
 
@@ -50,6 +51,7 @@ Section Mathematical_Undirected_AdjMat_Model.
   Definition undirected_edge_rep (g: UAdjMatGG) :=
     @uer g (SoundUAdjMat_UAdjMatGG g).
 
+  (* We often need finiteness so we drag it up *)
   Instance Finite_UAdjMatGG (g: UAdjMatGG): FiniteGraph g.
   Proof. apply (finGraph g). Qed.
 
@@ -101,20 +103,27 @@ Section Mathematical_Undirected_AdjMat_Model.
       ((u=a /\ v=b) \/ (u=b /\ v=a)).
   Proof.
     intros. destruct (Z.le_ge_cases u v); destruct (Z.le_ge_cases a b).
-    rewrite eformat1, eformat1 in H. apply pair_equal_spec in H. left; auto. simpl; auto. simpl; auto. simpl; auto.
-    rewrite eformat1, eformat2 in H. simpl in H. apply pair_equal_spec in H. right; auto. simpl; auto. simpl; auto.
-    rewrite eformat2, eformat1 in H. simpl in H. apply pair_equal_spec in H. right; split; apply H. simpl; auto. simpl; auto.
-    rewrite eformat2, eformat2 in H. simpl in H. apply pair_equal_spec in H. left; split; apply H. simpl; auto. simpl; auto.
+    - rewrite eformat1, eformat1 in H.
+      apply pair_equal_spec in H. left; auto.
+      simpl; auto. simpl; auto. 
+    - rewrite eformat1, eformat2 in H.
+      simpl in H. apply pair_equal_spec in H.
+      right; auto. simpl; auto. simpl; auto.
+    - rewrite eformat2, eformat1 in H. simpl in H.
+      apply pair_equal_spec in H. right; split; apply H.
+      simpl; auto. simpl; auto.
+    - rewrite eformat2, eformat2 in H. simpl in H.
+      apply pair_equal_spec in H. left; split; apply H.
+      simpl; auto. simpl; auto.
   Qed.
 
   Lemma eformat_symm:
     forall u v, eformat (u,v) = eformat (v,u).
   Proof.
-    intros. destruct (Z.lt_trichotomy u v).
-    rewrite eformat1. rewrite eformat2. simpl; auto. simpl; lia. simpl; lia.
-    destruct H.
-    rewrite eformat1. rewrite eformat2. simpl; auto. simpl; lia. simpl; lia.
-    rewrite eformat2'. rewrite eformat1. simpl; auto. simpl; lia. simpl; lia.
+    intros. destruct (Z.lt_trichotomy u v); [|destruct H].
+    - rewrite eformat1; [rewrite eformat2|]; simpl; trivial; lia.
+    - rewrite eformat1; [rewrite eformat2|]; simpl; trivial; lia.
+    - rewrite eformat2'; [rewrite eformat1|]; simpl; trivial; lia.
   Qed.
 
   Lemma evalid_adjacent:
@@ -124,142 +133,141 @@ Section Mathematical_Undirected_AdjMat_Model.
     rewrite (edge_src_fst g), (edge_dst_snd g) by auto. left; simpl; auto.
   Qed.
 
-  (* needs evalid e < inf *)
-  Lemma evalid_inf_iff:
-    forall (g: UAdjMatGG) e, evalid g e <-> elabel g e < inf.
-  Proof.
-    intros; split; intros.
-  Admitted.
-  (*
-  apply (evalid_meaning g); auto.
-destruct (evalid_dec g e). 
-auto. exfalso.
-rewrite (invalid_edge_weight g) in n.
-replace (elabel g e) with inf in * by trivial.
-lia.
-Qed.
-   *)
-
-  (* needs evalid e < inf *)
-  Lemma weight_inf_bound:
-    forall (g: UAdjMatGG) e, elabel g e <= inf.
-  Proof.
-    intros. destruct (evalid_dec g e).
-    apply Z.lt_le_incl.
-  Admitted.
-  (*apply (evalid_meaning  g e). auto.
-apply (invalid_edge_weight g) in n.
-replace (elabel g e) with inf in * by trivial. lia.
-Qed.
-   *)
-
   Lemma adj_edge_form:
-    forall (g: UAdjMatGG) u v a b, adj_edge g (u,v) a b -> a <= b -> (u = a /\ v = b).
+    forall (g: UAdjMatGG) u v a b,
+      adj_edge g (u,v) a b ->
+      a <= b ->
+      (u = a /\ v = b).
   Proof.
-    intros. destruct H. assert (src g (u,v) <= dst g (u,v)).
-    apply (undirected_edge_rep g). apply H.
+    intros. destruct H.
+    assert (src g (u,v) <= dst g (u,v)). {
+      apply (undirected_edge_rep g). apply H.
+    }
     rewrite (edge_src_fst g), (edge_dst_snd g) in *.
-    simpl in *. destruct H1. auto. destruct H1; subst u; subst v. lia.
-    all: apply H.
+    simpl in *. destruct H1; auto.
+    destruct H1; subst u; subst v. lia.
   Qed.
-
+  
   Lemma eformat_evalid_vvalid:
-    forall (g: UAdjMatGG) u v, evalid g (eformat (u,v)) -> vvalid g u /\ vvalid g v.
+    forall (g: UAdjMatGG) u v,
+      evalid g (eformat (u,v)) ->
+      vvalid g u /\ vvalid g v.
   Proof.
     intros. apply (evalid_strong_evalid g) in H.
-    destruct (Z.lt_trichotomy u v).
-    rewrite eformat1 in H. destruct H.
-    rewrite (edge_src_fst g), (edge_dst_snd g) in H1; auto. simpl; lia.
-    destruct H0.
-    subst u. rewrite eformat1 in H. destruct H.
-    rewrite (edge_src_fst g), (edge_dst_snd g) in H0; auto. simpl; lia.
-    rewrite eformat2 in H. simpl in H; destruct H.
-    rewrite (edge_src_fst g), (edge_dst_snd g) in H1; auto. simpl in H1.
-    split; apply H1. simpl; lia.
+    destruct (Z.lt_trichotomy u v); [| destruct H0].
+    - rewrite eformat1 in H. destruct H.
+      rewrite (edge_src_fst g), (edge_dst_snd g) in H1; auto. simpl; lia.
+    - subst u. rewrite eformat1 in H. destruct H.
+      rewrite (edge_src_fst g), (edge_dst_snd g) in H0; auto. simpl; lia.
+    - rewrite eformat2 in H. simpl in H; destruct H.
+      rewrite (edge_src_fst g), (edge_dst_snd g) in H1; auto. simpl in H1.
+      split; apply H1. simpl; lia.
   Qed.
 
-  Lemma eformat_adj': forall (g : UAdjMatGG) u v, evalid g (eformat (u,v)) -> adj_edge g (eformat (u,v)) u v.
+  Lemma eformat_adj':
+    forall (g : UAdjMatGG) u v,
+      evalid g (eformat (u,v)) ->
+      adj_edge g (eformat (u,v)) u v.
   Proof.
     intros. split. apply (evalid_strong_evalid g); auto.
     destruct (Z.le_ge_cases u v).
-    rewrite eformat1 in *. left. rewrite (edge_src_fst g), (edge_dst_snd g); auto. auto. auto.
-    rewrite eformat2 in *. right. rewrite (edge_src_fst g), (edge_dst_snd g); auto. auto. auto.
+    - rewrite eformat1 in *; auto. left.
+      rewrite (edge_src_fst g), (edge_dst_snd g); auto.
+    - rewrite eformat2 in *; auto. right.
+      rewrite (edge_src_fst g), (edge_dst_snd g); auto.
   Qed.
-
-  Lemma eformat_adj: forall (g: UAdjMatGG) u v, adjacent g u v <-> evalid g (eformat (u,v)).
+  
+  Lemma eformat_adj:
+    forall (g: UAdjMatGG) u v,
+      adjacent g u v <-> evalid g (eformat (u,v)).
   Proof.
-    intros. split. intros.
-    +
-      destruct H. destruct H. destruct H.
-      destruct H0; destruct H0. assert (x = (u,v)). {
-        rewrite (edge_src_fst g) in H0.
-        rewrite (edge_dst_snd g) in H2. rewrite <- H0, <- H2. destruct x; simpl; auto.
-      } subst x.
-      rewrite eformat1; auto. simpl.
-      rewrite <- H0. rewrite <- H2 at 2. apply (undirected_edge_rep g); auto.
-      assert (x = (v,u)). {
-        rewrite (edge_src_fst g) in H0; rewrite (edge_dst_snd g) in H2.
-        rewrite <- H0, <- H2. destruct x; simpl; auto.
-      } subst x.
-      rewrite eformat2. simpl. auto. simpl. rewrite <- H0. rewrite <- H2 at 2.
-      apply (undirected_edge_rep g); auto.
-    +intros. destruct (Z.lt_trichotomy u v).
-     rewrite eformat1 in H. 2: simpl; lia.
-     assert (evalid g (u,v)). auto.
-     exists (u,v). split. apply (evalid_strong_evalid g); auto. left.
-     rewrite (edge_src_fst g), (edge_dst_snd g); auto.
-     (*equal, repeat*)
-     destruct H0. rewrite eformat1 in H. 2: simpl; lia.
-     assert (evalid g (u,v)). auto.
-     exists (u,v). split. apply (evalid_strong_evalid g); auto. left.
-     rewrite (edge_src_fst g), (edge_dst_snd g); auto.
-     rewrite eformat2 in H. 2: simpl; lia. simpl in H.
-     assert (evalid g (v,u)). auto.
-     exists (v,u). split. apply (evalid_strong_evalid g); auto.
-     rewrite (edge_src_fst g), (edge_dst_snd g); auto.
+    intros. split; intros.
+    - destruct H. destruct H. destruct H.
+      destruct H0; destruct H0.
+      + assert (x = (u,v)). {
+          rewrite (edge_src_fst g) in H0.
+          rewrite (edge_dst_snd g) in H2.
+          rewrite <- H0, <- H2.
+          destruct x; simpl; auto.
+        }
+        subst x.
+        rewrite eformat1; auto. simpl.
+        rewrite <- H0. rewrite <- H2 at 2.
+        apply (undirected_edge_rep g); auto.
+      + assert (x = (v,u)). {
+          rewrite (edge_src_fst g) in H0; rewrite (edge_dst_snd g) in H2.
+          rewrite <- H0, <- H2. destruct x; simpl; auto.
+        }
+        subst x.
+        rewrite eformat2; simpl. auto.
+        rewrite <- H0. rewrite <- H2 at 2.
+        apply (undirected_edge_rep g); auto.
+    - destruct (Z.lt_trichotomy u v); [|destruct H0].
+      + rewrite eformat1 in H. 2: simpl; lia.
+        assert (evalid g (u,v)). auto.
+        exists (u,v). split.
+        * apply (evalid_strong_evalid g); auto.
+        * left.
+          rewrite (edge_src_fst g), (edge_dst_snd g); auto.
+      + rewrite eformat1 in H.
+        2: simpl; lia. subst u.
+        exists (v, v). red; split.
+        apply (evalid_strong_evalid g); auto.
+        left.
+        rewrite (edge_src_fst g), (edge_dst_snd g); auto.
+      + rewrite eformat2 in H. 2: simpl; lia. simpl in H.
+        assert (evalid g (v,u)). auto.
+        exists (v,u). split.
+        apply (evalid_strong_evalid g); auto.
+        rewrite (edge_src_fst g), (edge_dst_snd g); auto.
   Qed.
-
-  Corollary eformat_adj_elabel: forall (g: UAdjMatGG) u v, adjacent g u v <-> elabel g (eformat (u,v)) < inf.
-  Proof.
-    intros. rewrite eformat_adj. apply evalid_inf_iff.
-  Qed.
-
+  
   Section EDGELESS_UADJMATGRAPH.
 
     Context {inf_bound: Int.min_signed <= inf <= Int.max_signed}.
     Context {size_bound: 0 < size <= Int.max_signed}.
 
     Definition edgeless_lgraph : UAdjMatLG :=
-      @Build_LabeledGraph V E V_EqDec E_EqDec unit Z unit
-                          (@Build_PreGraph V E V_EqDec E_EqDec (fun v => 0 <= v < size) (fun e => False) fst snd)
-                          (fun v => tt) (fun e => inf) tt. 
+      @Build_LabeledGraph
+        V E V_EqDec E_EqDec unit Z unit
+        (@Build_PreGraph V E V_EqDec E_EqDec
+                         (fun v => 0 <= v < size)
+                         (fun e => False)
+                         fst snd)
+        (fun v => tt)
+        (fun e => inf)
+        tt. 
 
     Instance SoundUAdjMat_edgeless:
       SoundUAdjMat edgeless_lgraph.
     Proof. 
-      constructor.
-      all: simpl; intros; try contradiction.
-      constructor. 
-      auto. auto. 
-      all: simpl; intros; try auto; try contradiction.
-      split; intros; auto.
-      split; intros. contradiction. destruct H.
-      apply H0; reflexivity.
-      split; intros; auto.
-      constructor; unfold EnumEnsembles.Enumerable.
-      (*vertices*)
-      exists (nat_inc_list (Z.to_nat size)); split. apply nat_inc_list_NoDup.
-      simpl. intros. rewrite nat_inc_list_in_iff. rewrite Z_to_nat_max.
-      destruct (Z.lt_trichotomy size 0). rewrite Z.max_r by lia. split; intros; lia.
-      destruct H. rewrite H. unfold Z.max; simpl. split; lia.
-      rewrite Z.max_l by lia. split; auto.
-      (*edges*)
-      exists nil. simpl. split. apply NoDup_nil. intros; split; intros; auto.
+      constructor; [|inversion 1].
+      constructor; simpl; intros; auto; try contradiction.
+      - split; intros; auto.
+      - split; intros. contradiction. destruct H.
+        apply H0; reflexivity.
+      - split; intros; auto.
+      - constructor; unfold EnumEnsembles.Enumerable.
+        (*vertices*)
+        exists (nat_inc_list (Z.to_nat size)); split.
+        apply nat_inc_list_NoDup.
+        simpl. intros. rewrite nat_inc_list_in_iff.
+        rewrite Z_to_nat_max.
+        destruct (Z.lt_trichotomy size 0).
+        rewrite Z.max_r by lia. split; intros; lia.
+        destruct H. rewrite H.
+        unfold Z.max; simpl. split; lia.
+        rewrite Z.max_l by lia. split; auto.
+        (*edges*)
+        exists nil. simpl. split.
+        apply NoDup_nil. intros; split; intros; auto.
     Qed.
 
     Definition edgeless_graph: UAdjMatGG :=
-      @Build_GeneralGraph V E V_EqDec E_EqDec unit Z unit SoundUAdjMat
-                          edgeless_lgraph SoundUAdjMat_edgeless.
+      @Build_GeneralGraph V E V_EqDec E_EqDec unit Z unit
+                          SoundUAdjMat
+                          edgeless_lgraph
+                          SoundUAdjMat_edgeless.
 
     Lemma edgeless_graph_evalid:
       forall e, ~ evalid edgeless_graph e.
@@ -281,47 +289,53 @@ Qed.
     Lemma edgeless_partial_lgraph:
       forall (g: UAdjMatGG), is_partial_lgraph edgeless_graph g.
     Proof.
-      intros. split. unfold is_partial_graph.
-      split. intros. simpl. simpl in H. rewrite (vvalid_meaning g). auto.
-      split. intros. pose proof (edgeless_graph_evalid e). contradiction.
-      split. intros. pose proof (edgeless_graph_evalid e). contradiction.
-      intros. pose proof (edgeless_graph_evalid e). contradiction.
-      split. unfold preserve_vlabel; intros. destruct vlabel; destruct vlabel. auto.
-      unfold preserve_elabel; intros. pose proof (edgeless_graph_evalid e). contradiction.
+      intros. split3.
+      - unfold is_partial_graph.
+        split3; [| |split]; try inversion 1.
+        apply (vvalid_meaning g); trivial.
+      - unfold preserve_vlabel; intros.
+        destruct vlabel; destruct vlabel. auto.
+      - unfold preserve_elabel. inversion 1.
     Qed.
-
+    
     Lemma uforest'_edgeless_graph:
       uforest' edgeless_graph.
     Proof.
-      split; intros.
-      (*no self-loops*)
-      apply edgeless_graph_evalid in H; contradiction.
-      split; intros.
-      (*only one edge between two vertices*)
-      destruct H. destruct H. destruct H.
-      apply edgeless_graph_evalid in H; contradiction.
-      (*no rubbish edges*)
-      split; intros.
-      apply edgeless_graph_evalid in H; contradiction.
-      (*main forest definition*)
-      unfold unique_simple_upath; intros. destruct H0 as [? [? ?]].
-      destruct p1. inversion H3. destruct p1.
-      inversion H3. inversion H4. subst u; subst v.
-      destruct H2 as [? [? ?]]. destruct p2. inversion H5.
-      destruct p2. inversion H5. subst v. auto.
-      destruct H2. destruct H2. destruct H2. destruct H2. simpl in H2. contradiction.
-      destruct H0. destruct H0. destruct H0. destruct H0. simpl in H0. contradiction.
+      split3; [| |split]; intros.
+      - (*no self-loops*)
+        apply edgeless_graph_evalid in H; contradiction.
+      - (*only one edge between two vertices*)
+        destruct H. destruct H. destruct H.
+        apply edgeless_graph_evalid in H; contradiction.
+      - (*no rubbish edges*)
+        inversion H.
+      - (*main forest definition*)
+        unfold unique_simple_upath; intros.
+        destruct H0 as [? [? ?]].
+        destruct p1; [inversion H3| destruct p1].
+        + inversion H3; inversion H4. subst u; subst v.
+          destruct H2 as [? [? ?]].
+          destruct p2; [inversion H5|].
+          destruct p2.
+          * inversion H5. subst v. auto.
+          * destruct H2 as [[? [[? _] _]] _].
+            inversion H2. 
+        + destruct H0 as [[? [[? _] _]] _].
+          inversion H0.
     Qed.
 
     Lemma edgeless_graph_disconnected:
-      forall u v, u <> v -> ~ connected edgeless_graph u v.
+      forall u v,
+        u <> v -> ~ connected edgeless_graph u v.
     Proof.
       unfold not; intros.
       destruct H0 as [p [? [? ?]]].
-      destruct p. inversion H1.
-      destruct p. inversion H1; inversion H2. subst u; subst v. contradiction.
-      destruct H0. destruct H0. destruct H0. destruct H0.
-      pose proof (edgeless_graph_evalid x). contradiction.
+      destruct p; [inversion H1|].
+      destruct p.
+      - inversion H1; inversion H2.
+        subst u; subst v. contradiction.
+      - destruct H0 as [[? [[? _] _]] _].
+        inversion H0.
     Qed.
 
   End EDGELESS_UADJMATGRAPH.
@@ -348,53 +362,60 @@ Qed.
       SoundUAdjMat UAdjMatGG_adde'.
     Proof.
       constructor; simpl. constructor; simpl.
-      +apply (size_representable g).
-      +apply (inf_representable g).
-      +apply (vvalid_meaning g).
-      +unfold addValidFunc, updateEdgeFunc, update_elabel; intros.
-       split; intros. destruct H. unfold equiv_dec; destruct E_EqDec.
-       split. pose proof (inf_representable g); lia. lia.
-       apply (evalid_meaning g) in H. apply H.
-       subst e. unfold equiv_dec. destruct E_EqDec.
-       split. pose proof (inf_representable g); lia. lia.
-       unfold complement, equiv in c; contradiction.
-       unfold equiv_dec in H; destruct (E_EqDec (u,v)).
-       hnf in e0; subst e. right; auto.
-       left. apply (evalid_meaning g). auto.
-      +unfold addValidFunc, update_elabel, equiv_dec; intros. destruct (E_EqDec (u,v) e);  destruct H.
-       hnf in e0. subst e.
-       apply add_edge_strong_evalid; trivial.
-       hnf in e0. subst e.
-       apply add_edge_strong_evalid; trivial.
-       apply add_edge_preserves_strong_evalid; trivial.
-       apply (evalid_strong_evalid g); trivial.
-       hnf in c. exfalso. apply c. hnf. auto. 
-      + split; intros; unfold update_elabel, equiv_dec in *; destruct (E_EqDec (u,v) e).
-      - exfalso. apply H. right. hnf in e0. auto.
-      - apply Decidable.not_or in H. destruct H.
-        apply (invalid_edge_weight g); trivial.
-      - rewrite H in w_rep. lia.
-      - apply Classical_Prop.and_not_or.
-        split. apply <- (invalid_edge_weight g); trivial.
-        auto.
-        + unfold addValidFunc, updateEdgeFunc, equiv_dec; intros. destruct (E_EqDec (u,v) e).
-          unfold equiv in e0; subst e. simpl; auto.
-          apply (edge_src_fst g e).
-        +unfold addValidFunc, updateEdgeFunc, equiv_dec; intros. destruct (E_EqDec (u,v) e).
-         unfold equiv in e0; subst e. simpl; auto.
-         apply (edge_dst_snd g e).
-        +apply Fin_UAdjMatGG_adde'.
-        +unfold addValidFunc, updateEdgeFunc, equiv_dec; intros.
-         destruct (E_EqDec (u,v) e). hnf in e0; subst e. trivial. 
-         unfold complement, equiv in c. destruct H.
-         apply (undirected_edge_rep g e); auto.
-         exfalso. apply c.
-         symmetry. trivial.
+      - apply (size_representable g).
+      - apply (inf_representable g).
+      - apply (vvalid_meaning g).
+      - unfold addValidFunc, updateEdgeFunc, update_elabel; intros.
+        split; intros.
+        + destruct H.
+          * unfold equiv_dec; destruct E_EqDec.
+            split. pose proof (inf_representable g); lia. lia.
+            apply (evalid_meaning g) in H. apply H.
+          * subst e. unfold equiv_dec. destruct E_EqDec.
+            split. pose proof (inf_representable g); lia. lia.
+            unfold complement, equiv in c; contradiction.
+        + unfold equiv_dec in H; destruct (E_EqDec (u,v)).
+          hnf in e0; subst e. right; auto.
+          left. apply (evalid_meaning g). auto.
+      - unfold addValidFunc, update_elabel, equiv_dec; intros.
+        destruct (E_EqDec (u,v) e);  destruct H.
+        + hnf in e0. subst e.
+          apply add_edge_strong_evalid; trivial.
+        + hnf in e0. subst e.
+          apply add_edge_strong_evalid; trivial.
+        + apply add_edge_preserves_strong_evalid; trivial.
+          apply (evalid_strong_evalid g); trivial.
+        + hnf in c. exfalso. apply c. hnf. auto. 
+      - split; intros; unfold update_elabel, equiv_dec in *; destruct (E_EqDec (u,v) e).
+        + exfalso. apply H. right. hnf in e0. auto.
+        + apply Decidable.not_or in H. destruct H.
+          apply (invalid_edge_weight g); trivial.
+        + rewrite H in w_rep. lia.
+        + apply Classical_Prop.and_not_or.
+          split. apply <- (invalid_edge_weight g); trivial.
+          auto.
+      - unfold addValidFunc, updateEdgeFunc, equiv_dec; intros.
+        destruct (E_EqDec (u,v) e).
+        unfold equiv in e0; subst e. simpl; auto.
+        apply (edge_src_fst g e).
+      - unfold addValidFunc, updateEdgeFunc, equiv_dec; intros.
+        destruct (E_EqDec (u,v) e).
+        unfold equiv in e0; subst e. simpl; auto.
+        apply (edge_dst_snd g e).
+      - apply Fin_UAdjMatGG_adde'.
+      - unfold addValidFunc, updateEdgeFunc, equiv_dec; intros.
+        destruct (E_EqDec (u,v) e). hnf in e0; subst e. trivial. 
+        unfold complement, equiv in c. destruct H.
+        apply (undirected_edge_rep g e); auto.
+        exfalso. apply c.
+        symmetry. trivial.
     Qed.
 
     Definition UAdjMatGG_adde: UAdjMatGG :=
-      @Build_GeneralGraph V E V_EqDec E_EqDec unit Z unit SoundUAdjMat
-                          UAdjMatGG_adde' (SoundUAdjMat_adde').
+      @Build_GeneralGraph V E V_EqDec E_EqDec unit Z unit
+                          SoundUAdjMat
+                          UAdjMatGG_adde'
+                          SoundUAdjMat_adde'.
 
     Lemma adde_vvalid:
       vvalid g v <-> vvalid UAdjMatGG_adde v.
@@ -403,15 +424,24 @@ Qed.
     Qed.
 
     Lemma adde_evalid_or:
-      forall e, evalid UAdjMatGG_adde e <-> (evalid g e \/ e = (u,v)).
-    Proof. unfold UAdjMatGG_adde; simpl; unfold addValidFunc. intros; split; auto. Qed.
+      forall e,
+        evalid UAdjMatGG_adde e <->
+        (evalid g e \/ e = (u,v)).
+    Proof.
+      unfold UAdjMatGG_adde; simpl; unfold addValidFunc.
+      intros; split; auto.
+    Qed.
 
     (*all the Elist stuff are useless by themselves, because (@fin .. sound_matrx) clashes with Fin for some reason*)
     Lemma adde_EList_new:
-      ~ evalid g (u,v) -> Permutation ((u,v)::(EList g)) (EList UAdjMatGG_adde).
+      ~ evalid g (u,v) ->
+      Permutation ((u,v)::(EList g)) (EList UAdjMatGG_adde).
     Proof.
-      intros. apply NoDup_Permutation. apply NoDup_cons. rewrite EList_evalid; auto. apply NoDup_EList. apply NoDup_EList.
-      intros; split; intros. rewrite EList_evalid, adde_evalid_or. destruct H0.
+      intros. apply NoDup_Permutation.
+      apply NoDup_cons. rewrite EList_evalid; auto.
+      apply NoDup_EList. apply NoDup_EList.
+      intros; split; intros.
+      rewrite EList_evalid, adde_evalid_or. destruct H0.
       right; symmetry; auto. left; rewrite EList_evalid in H0; auto.
       rewrite EList_evalid, adde_evalid_or in H0. destruct H0. right; rewrite EList_evalid; auto. left; symmetry; auto.
     Qed.
@@ -694,179 +724,6 @@ Qed.
     apply Permutation_map. auto.
   Qed.
 
-  Lemma exists_labeled_spanning_uforest_pre:
-    forall (l: list E) (g: UAdjMatGG), Permutation l (EList g) -> exists (t: UAdjMatGG), labeled_spanning_uforest t g.
-  Proof.
-    induction l; intros.
-    (*nil case*)
-    exists (@edgeless_graph (inf_representable g) (size_representable g)).
-    split. split. apply edgeless_partial_lgraph. split. apply uforest'_edgeless_graph.
-    unfold spanning; intros. destruct (V_EqDec u v).
-    hnf in e. subst v. split; intros; apply connected_refl.
-    apply connected_vvalid in H0. rewrite (vvalid_meaning g) in *. apply H0.
-    apply connected_vvalid in H0. rewrite (vvalid_meaning g) in *. apply H0.
-    unfold complement, equiv in c. split; intros. exfalso. destruct H0.
-    unfold connected_by_path in H0. destruct H0. destruct H1. destruct x. inversion H1.
-    destruct x. inversion H1. inversion H2. subst v0. contradiction.
-    destruct H0. destruct H0. destruct H0. destruct H0.
-    rewrite <- EList_evalid in H0. rewrite <- H in H0. contradiction.
-    pose proof (@edgeless_graph_disconnected (inf_representable g) (size_representable g) u v c).
-    contradiction.
-    unfold preserve_vlabel, preserve_elabel; split; intros.
-    destruct vlabel. destruct vlabel. auto.
-    pose proof (@edgeless_graph_evalid (inf_representable g) (size_representable g) e).
-    contradiction.
-    (*inductive step*)
-    set (u:=src g a). set (v:=dst g a).
-    assert (connected g u v). apply adjacent_connected. exists a.
-    unfold u; unfold v; apply strong_evalid_adj_edge.
-    apply (evalid_strong_evalid g). rewrite <- EList_evalid, <- H. left; auto.
-    set (remove_a:=(@UAdjMatGG_eremove g a)).
-    assert (Ha_evalid: evalid g a). { rewrite <- EList_evalid. apply (Permutation_in (l:=(a::l))).
-                                      apply H. left; auto. }
-                                    specialize IHl with remove_a.
-    destruct IHl as [t ?]. {
-      unfold remove_a. pose proof (@eremove_EList g a Ha_evalid l H).
-      apply NoDup_Permutation. assert (NoDup (a::l)). apply (Permutation_NoDup (l:=EList g)).
-      apply Permutation_sym; auto. apply NoDup_EList. apply NoDup_cons_1 in H2; auto.
-      apply NoDup_EList.
-      intros. rewrite EList_evalid. split; intros.
-      pose proof (Permutation_in (l:=l) (l':=_) x H1 H2). rewrite EList_evalid in H3; auto.
-      apply Permutation_sym in H1.
-      apply (Permutation_in (l:=_) (l':=l) x H1). rewrite EList_evalid; auto.
-    }
-    assert (Htg: is_partial_lgraph t g). {
-      destruct H1. destruct H2. destruct H1. destruct H4. split.
-      split. intros. apply H1 in H6. auto.
-      split. intros. destruct H1. destruct H7. apply H7. auto.
-      split. intros. apply H1 in H7. simpl in H7. auto. auto.
-      intros. apply H1 in H7. simpl in H7. auto. auto.
-      unfold preserve_vlabel, preserve_elabel; split; intros.
-      destruct vlabel. destruct vlabel. auto.
-      rewrite H3 by auto. simpl. destruct (E_EqDec e a). unfold equiv in e0.
-      subst e. assert (evalid remove_a a). apply H1; auto.
-      simpl in H7. unfold removeValidFunc in H7. destruct H7; contradiction.
-      auto.
-    }
-    destruct (connected_dec remove_a u v).
-    (*already connected*)
-    ++
-      exists t. destruct H1.  destruct H3. destruct H1. destruct H5.
-      split. split.
-      (*partial_graph*)
-      apply Htg.
-      (*uforest*)
-      split. auto.
-      (*spanning*)
-      unfold spanning in *. intros. rewrite <- H6. split; intros.
-      {(*---------->*)
-        destruct H7 as [p ?].
-        apply (connected_by_upath_exists_simple_upath) in H7. destruct H7 as [p' [? ?]]. clear p.
-        assert (exists l, fits_upath g l p'). apply (connected_exists_list_edges g p' u0 v0); auto.
-        destruct H9 as [l' ?]. destruct (in_dec E_EqDec a l').
-        **(*yes: split the path*)
-          assert (NoDup l'). apply (simple_upath_list_edges_NoDup g p' l'); auto.
-          apply (fits_upath_split2 g p' l' a u0 v0) in H9; auto.
-          destruct H9 as [p1 [p2 [l1 [l2 [? [? [? [? ?]]]]]]]]. subst l'. fold u in H11. fold v in H11.
-          assert (~ In a l1). unfold not; intros.
-          apply (NoDup_app_not_in E l1 ((a::nil)++l2) H10 a) in H14. apply H14.
-          apply in_or_app. left; left; auto.
-          assert (~ In a l2). unfold not; intros.
-          apply NoDup_app_r in H10. apply (NoDup_app_not_in E (a::nil) l2 H10 a).
-          left; auto. auto.
-          destruct H11; destruct H11.
-          ****
-            apply (connected_trans _ u0 u). exists p1. split.
-            apply (remove_edge_valid_upath _ a p1 l1); auto. apply H11. apply H11.
-            apply (connected_trans _ u v). auto.
-            exists p2. split. apply (remove_edge_valid_upath _ a p2 l2); auto. apply H16. apply H16.
-          ****
-            apply (connected_trans _ u0 v). exists p1. split.
-            apply (remove_edge_valid_upath _ a p1 l1); auto. apply H11. apply H11.
-            apply (connected_trans _ v u). apply connected_symm; auto.
-            exists p2. split. apply (remove_edge_valid_upath _ a p2 l2); auto. apply H16. apply H16.
-        **(*no: fits_upath_transfer*)
-          exists p'. split. apply (remove_edge_valid_upath _ a p' l'); auto. apply H7. apply H7.
-      } { (*<---*)
-        destruct H7 as [p [? ?]]. exists p. split.
-        apply remove_edge_unaffected in H7; auto. auto.
-      }
-      (*labels*)
-      apply Htg.
-    ++
-      assert (vvalid g u /\ vvalid g v). apply connected_vvalid in H0; auto. destruct H3.
-      assert (u <= v). apply (undirected_edge_rep g). auto.
-      set (w:= elabel g a). 
-      assert (Int.min_signed <= w < inf). unfold w. split.
-      pose proof (weight_representable g a). apply H6.
-      admit. (* needs evalid e < inf *)
-      rewrite (vvalid_meaning g) in H3, H4.
-      rewrite <- (vvalid_meaning t) in H3, H4.
-      assert (Ha: a = (u,v)). unfold u, v; apply (evalid_form g); auto. rewrite Ha in *.
-      set (adde_a:=@UAdjMatGG_adde t u v H3 H4 H5 w H6).
-      exists adde_a. split. split.
-      apply adde_partial_lgraph; auto. unfold w. rewrite Ha; auto.
-      split.
-      (*uforest*)
-      apply add_edge_uforest'; auto. apply H1.
-      unfold not; intros.
-      apply (is_partial_lgraph_connected t remove_a) in H7. contradiction.
-      split. apply H1. apply H1.
-      (*spanning*)
-      unfold spanning; intros. assert (Ht_uv: ~ evalid t (u,v)). unfold not; intros.
-      assert (evalid remove_a (u,v)). apply H1; auto.
-      simpl in H8. rewrite Ha in H8. unfold removeValidFunc in H8. destruct H8; contradiction.
-      split; intros.
-      { (*-->*) destruct H7 as [p ?]. apply connected_by_upath_exists_simple_upath in H7.
-        destruct H7 as [p' [? ?]]. clear p.
-        assert (exists l', fits_upath g l' p'). apply connected_exists_list_edges in H7; auto.
-        destruct H9 as [l' ?]. assert (NoDup l'). apply simple_upath_list_edges_NoDup in H9; auto.
-        destruct (in_dec E_EqDec a l').
-        **
-          apply (fits_upath_split2 g p' l' a u0 v0) in H9; auto.
-          destruct H9 as [p1 [p2 [l1 [l2 [? [? [? [? ?]]]]]]]]. fold u in H11. fold v in H11. subst l'.
-          assert (~ In a l1). unfold not; intros. apply (NoDup_app_not_in E l1 ((a::nil)++l2) H10 a) in H14.
-          apply H14. apply in_or_app. left; left; auto.
-          assert (~ In a l2). unfold not; intros. apply NoDup_app_r in H10.
-          apply (NoDup_app_not_in E (a::nil) l2 H10 a). left; auto. auto.
-          destruct H11; destruct H11.
-          ****
-            apply (connected_trans _ u0 u). apply add_edge_connected; auto.
-            apply H1. exists p1. split. apply (remove_edge_valid_upath _ a p1 l1); auto. apply H11. apply H11.
-            apply (connected_trans _ u v). apply adjacent_connected.
-            exists a. rewrite Ha. apply add_edge_adj_edge1. auto. auto.
-            apply add_edge_connected; auto. apply H1. exists p2. split.
-            apply (remove_edge_valid_upath _ a p2 l2); auto. apply H16. apply H16.
-          ****
-            apply (connected_trans _ u0 v). apply add_edge_connected; auto.
-            apply H1. exists p1. split. apply (remove_edge_valid_upath _ a p1 l1); auto. apply H11. apply H11.
-            apply (connected_trans _ v u). apply adjacent_connected. apply adjacent_symm.
-            exists a. rewrite Ha. apply add_edge_adj_edge1. auto. auto.
-            apply add_edge_connected; auto. apply H1. exists p2. split.
-            apply (remove_edge_valid_upath _ a p2 l2); auto. apply H16. apply H16.
-        **
-          apply add_edge_connected; auto.
-          apply H1. exists p'. split. 2: apply H7.
-          apply (remove_edge_valid_upath g a p' l'); auto. apply H7.
-      } {
-        apply (is_partial_lgraph_connected adde_a g).
-        apply adde_partial_lgraph; auto. unfold w. rewrite Ha; auto. auto.
-      }
-      (*labels*)
-      unfold preserve_vlabel, preserve_elabel; split; intros.
-      destruct vlabel; destruct vlabel; auto.
-      simpl. unfold update_elabel, equiv_dec.
-      destruct (E_EqDec (u,v) e). hnf in e0. subst e. unfold w; rewrite Ha; auto.
-      apply Htg. simpl in H7. unfold addValidFunc in H7. destruct H7. apply H7.
-      unfold complement, equiv in c. symmetry in H7; contradiction.
-  Admitted.
-
-  Corollary exists_labeled_spanning_uforest:
-    forall (g: UAdjMatGG), exists (t: UAdjMatGG), labeled_spanning_uforest t g.
-  Proof.
-    intros. apply (exists_labeled_spanning_uforest_pre (EList g)). apply Permutation_refl.
-  Qed.
-
   Lemma partial_graph_incl:
     forall (t g: UAdjMatGG), is_partial_graph t g -> incl (EList t) (EList g).
   Proof.
@@ -889,78 +746,7 @@ Qed.
     apply incl_cons_inv in H0; auto.
     apply H. rewrite <- EList_evalid. apply H0. left; auto.
   Qed.
-
-  (* needs UAdjMatGG and NoDup_incl_ordered_powerlist, which means it should probably stay right here *) 
-  Lemma exists_msf:
-    forall {E_EqDec : EqDec E eq} (g: UAdjMatGG), exists (t: UAdjMatGG), minimum_spanning_forest t g.
-  Proof.
-    intros. pose proof (NoDup_incl_ordered_powerlist (EList g) (NoDup_EList g)).
-    destruct H as [L ?].
-    (*now what I need is the subset of L that exists t, labeled_spanning_uforest t g ...*)
-    destruct (list_decidable_prop_reduced_list
-                (fun l' => NoDup l' /\ incl l' (EList g) /\ (forall x y, In x l' -> In y l' ->
-                                                                         (find l' x 0 <= find l' y 0 <-> find (EList g) x 0 <= find (EList g) y 0)))
-                (fun l => (exists (t: UAdjMatGG), labeled_spanning_uforest t g /\ Permutation l (EList t)))
-                L
-             ).
-    apply exists_dec.
-    intros; split; intros. rewrite <- H in H0. destruct H0 as [? [? ?]].
-    split. apply H0. split. apply H1. apply H2.
-    rewrite <- H. auto.
-    rename x into Lspan.
-    assert (Lspan <> nil). unfold not; intros. {
-      destruct (exists_labeled_spanning_uforest g) as [t ?].
-      destruct (test2 (EList t) (EList g)) as [lt ?]. apply NoDup_EList. apply NoDup_EList.
-      apply partial_graph_incl. apply H2. destruct H3.
-      assert (In lt Lspan). apply H0. split. split. apply (Permutation_NoDup (l:=EList t)).
-      apply Permutation_sym; auto. apply NoDup_EList.
-      split. unfold incl; intros. apply (Permutation_in (l':=EList t)) in H5; auto.
-      apply (partial_graph_incl t g) in H5; auto. apply H2. apply H4.
-      exists t. split; auto.
-      rewrite H1 in H5; contradiction.
-    }
-    pose proof (exists_Zmin Lspan (fun l => fold_left Z.add (map (elabel g) l) 0) H1).
-    destruct H2 as [lmin [? ?]].
-    apply H0 in H2. destruct H2. destruct H2 as [? [? ?]]. destruct H4 as [msf [? ?]].
-    exists msf. unfold minimum_spanning_forest. split. apply H4. intros.
-    destruct (test2 (EList t') (EList g)) as [lt' ?]. apply NoDup_EList. apply NoDup_EList.
-    apply partial_graph_incl. apply H8. destruct H9.
-    rewrite (sum_DE_equiv msf lmin). 2: apply Permutation_sym; auto.
-    rewrite (sum_DE_equiv t' lt'). 2: apply Permutation_sym; auto.
-    replace (map (elabel msf) lmin) with (map (elabel g) lmin).
-    replace (map (elabel t') lt') with (map (elabel g) lt').
-    apply H3. apply H0. split. split.
-    apply (Permutation_NoDup (l:=EList t')). apply Permutation_sym; auto. apply NoDup_EList.
-    split. unfold incl; intros. apply (Permutation_in (l':=EList t')) in H11; auto.
-    apply (partial_graph_incl t' g) in H11. auto. apply H8.
-    apply H10. exists t'. split; auto.
-    symmetry; apply partial_lgraph_elabel_map. split. apply H8. apply H8.
-    apply Permutation_incl; auto.
-    symmetry; apply partial_lgraph_elabel_map. split. apply H4. apply H4.
-    apply Permutation_incl; auto.
-  Qed.
-
-  Lemma msf_if_le_msf:
-    forall {E_EqDec : EqDec E eq} (t g: UAdjMatGG), labeled_spanning_uforest t g ->
-                                                    (forall t', minimum_spanning_forest t' g -> sum_DE Z.add t 0 <= sum_DE Z.add t' 0) ->
-                                                    minimum_spanning_forest t g.
-  Proof.
-    intros. unfold minimum_spanning_forest. split. auto.
-    intros. destruct (exists_msf g) as [msf ?].
-    apply (Z.le_trans _ (sum_DE Z.add msf 0)). auto.
-    apply H2. auto.
-  Qed.
-
-  Corollary msf_if_le_msf':
-    forall {E_EqDec : EqDec E eq} (t t' g: UAdjMatGG), labeled_spanning_uforest t g ->
-                                                       minimum_spanning_forest t' g -> sum_DE Z.add t 0 <= sum_DE Z.add t' 0 ->
-                                                       minimum_spanning_forest t g.
-  Proof.
-    intros. apply msf_if_le_msf; auto.
-    intros. apply (Z.le_trans _ (sum_DE Z.add t' 0)). auto.
-    apply H0. apply H2.
-  Qed.
-
+  
   (*The following two could not be moved because they require a massage allowing in_dec
 to be used as a bool, and I don't know what allows it*)
   Lemma filter_list_Permutation:

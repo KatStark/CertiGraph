@@ -95,14 +95,13 @@ Section MathDijkGraph.
     intros.
     pose proof (size_representable g).
     pose proof (size_further_restricted g).
-    assert (0 < Int.max_signed / size + 1). {
-      rewrite Z.add_1_r.
-      apply Zle_lt_succ.
-      apply Z.div_pos; [|lia].
-      compute; inversion 1.
+    assert (4 <= Int.max_signed/size). {
+      apply Zdiv_le_lower_bound; lia.
     }
-    admit.
-  Admitted.
+    apply Z.lt_gt.
+    rewrite <- Z.sub_sub_distr.
+    apply Z.lt_sub_pos. lia.
+  Qed.
   
   Lemma inf_bounds:
     forall (g: DijkGG),
