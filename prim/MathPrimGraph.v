@@ -27,8 +27,8 @@ Section MathPrimGraph.
       forall e, evalid g e <-> elabel g e < inf;
     
     ifr: (* inf is further restricted *)
-      0 <= inf < Int.max_signed                          
-    }.
+      0 <= inf <= Int.max_signed                          
+    }. 
 
   (* And here is the GeneralGraph that we will use *)
   Definition PrimGG := (GeneralGraph V E DV DE DG (fun g => SoundPrim g)).
@@ -65,7 +65,7 @@ Section MathPrimGraph.
   Instance Finite_PrimGG (g: PrimGG): FiniteGraph g.
   Proof. apply (finGraph g). Qed.
 
-  Context {inf_bound: 0 <= inf < Int.max_signed}.
+  Context {inf_bound: 0 <= inf <= Int.max_signed}.
   Context {size_bound: 0 < size <= Int.max_signed}.
 
   Instance SoundPrim_edgeless:
@@ -76,15 +76,13 @@ Section MathPrimGraph.
     - split; intros; [inversion H | simpl in H; lia].
   Qed.
 
-  (* Should really find a cleverer way than duplication... *)
-  
-  (*  Definition edgeless_graph: PrimGG :=
+  Definition edgeless_prim_graph: PrimGG :=
       @Build_GeneralGraph V E V_EqDec E_EqDec unit Z unit
                         SoundPrim
                         edgeless_lgraph
                         SoundPrim_edgeless.
-   *)
 
+  
   (* Or else you end up in this mad route of more duplication. *)
   (*
     Lemma edgeless_partial_lgraph:
@@ -100,6 +98,16 @@ Section MathPrimGraph.
       inversion 1.
   Qed.
    *)
+
+    (*
+  Lemma P_shuffle: forall H H0 P,
+      P (@edgeless_graph _ _ H H0) ->
+      P edgeless_prim_graph.
+  Proof. 
+      intros. unfold edgeless_graph, edgeless_prim_graph in *.
+      assert ((@SoundUAdjMat_edgeless _ _ H H0) <-> SoundPrim_edgeless). {
+   *)
+
   
   (* And now some lemmas from the above *)
   
@@ -129,17 +137,21 @@ Section MathPrimGraph.
     forall (l: list E) (g: PrimGG),
       Permutation l (EList g) ->
       exists (t: PrimGG), labeled_spanning_uforest t g.
-  Proof. Admitted.
-  (*
+  Proof. 
     induction l; intros.
     - (*nil case*)
-      exists edgeless_graph.
+      exists edgeless_prim_graph.
       (* Hm, how do I state, above, that edgeless_graph
          from MathUAdjMat is actually a bona-fide PrimGG? 
          I have already showed that it satisfies 
          PrimGG's soundness condition...
        *)
       split. split.
+      assert (Int.min_signed <= inf <= Int.max_signed) by admit.
+      generalize (@edgeless_partial_lgraph _ _ H0 size_bound g). intro.
+      destruct H1.
+
+      apply H1.
       apply edgeless_partial_lgraph.
       split. apply uforest'_edgeless_graph.
       unfold spanning; intros. destruct (V_EqDec u v).
